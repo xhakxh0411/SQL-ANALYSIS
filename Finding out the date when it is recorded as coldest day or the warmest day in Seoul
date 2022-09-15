@@ -1,0 +1,159 @@
+# SQL
+-----Finding out the date when it is recorded as coldest day or the warmest day in Seoul
+-----Explanations are written in Korean
+
+
+CREATE TABLE TB_TEMPER_DATA
+(
+ STD_DE CHAR(10)  #문자 10개로 구성
+, AREA_CD (CHAR3) #지역코드 문자 3개로 구성
+, AVG_TEMPER NUMBER(3, 1) #소수점은 한자리로보겠다
+, MIN_TEMPER NUMBER(3, 1)
+, MAX_TEMPER NUMBER(3, 1)
+);
+
+ITB_TEMPER_DATA 테이블에 다운로드 받은 CSV파일을 임포트 시킨다
+ORACLE SQL Developer
+에서 TB_TEMPER_DATA 마우스 오른쪽, Import data, 파틸찾아보기, 저장한폴더 DASQL
+기온데이터_서울.csv
+
+
+02. 기온 데이터 테이블 생성 및 데이터 입력
+
+
+(데이터 미리보기)
+파일 형식, 헤더 체크 헤제
+형식(F) : CSV
+인코딩 MS949
+왼쪽, 오른쪽 둘러싸기 없음
+구분자 ,
+
+다음눌러서 형식 확인
+선택된열
+열1
+열2
+열3
+열4
+열5
+다 mapping 된거 확인후 다음, 완료
+
+SELECT *
+  FROM TB_TABLE_DATA
+#후 Control enter 누르면 저장된 데이터 결과 확인할수있음
+  WHERE AREA_CD = '108' #서울지역코드
+#control + enter
+  AND AVG_TEMPER = 28.5
+  ORDER BY STD_DE DESC #최근거기준으로 보여주기 (역순효과)
+  ORDER BY STD_DE ASC # 아무거도안쓰는효과 (오래된데이터순으로 나올것)
+  ;
+#위조건의 해당하는 결과들만 추출됨
+
+SELECT COUNT(*) CNT
+FROM TB_TEMPER_DATA
+;
+
+동일하지않은 데이터 Unique data ex: 주민번호 => primary key
+CREATE TABLE TB_TEMPER
+(
+  STD_CHAR(8)
+,  AREA_CD CHAR(3)
+, AVG_TEMPER NUMBER(3,1)
+, MIN_TEMPER NUMBER(3,1)
+, MAX_TEMPER NUMBER(3,1)
+, CONSTRAINT TB_TEMPER_PK PRIMARY KEY (STD_DE, AREA_CD)
+);
+
+#TB_TEMPER_DATA 테이블은 CSV파일을 그대로 저장하는용도로 사용
+#데이터 분석작업은 TB_TEMPER 테이블에서 진행함
+#TB_TEMPER 테이블의 기본키는 STD_DE, AREA_CD로 지정함
+#TB_TEMPER 테이블은 STD_DE+ARAEA_CD 기준으로 한건을 짚어낼수있음
+#not null이여하며 unique한 data여야함
+
+TB_TEMPER 테이블에 데이터 저장
+INSERT INTO TB_TEMPER
+SELECT
+  REPLACE(STD_DE, '-', ' ') AS STD_DE
+,  AREA_CD
+,  AVG_TEMPER
+,  MIN_TEMPER
+,  MAX_TEMPER
+  FROM TB_TEMPER_DATA;
+
+SELECT * FROM TB_TEMPER;
+
+COMMIT;
+ROLLBACK; #방금 넣은 데이터를 되돌린다는 뜻
+
+#STD_DE칼럼의 '-'를 ' ' 로 Replace 해서 'yyyymmdd''형태로 저장함
+#즉 '-' 를 제거하는것임
+#그 외 나머지 칼럼은 그대로 저장함
+
+
+#오라클데이터베이스는 데이터럴 넣거나 수정하거나 삭제하거나 병합한후
+commit을해줘야함 #처리한다는의미
+
+
+
+
+
+서울시의 최고 최저 온도 및 해당 일자구하기
+
+SELECT
+A.AREA_CD
+, MIN(A.MIN_TEMPER) AS MIN)TEMPER
+, MAX(A.MAX_TEMPER) AS MAX_TEMPER
+  FROM TB_TEMPER A
+  WHERE A.AREA_CD= '108' --지역코드 : 서울특별시
+  GROUP BY A.AREA_CD
+;
+
+1) TB_TEMPER 테이블을 조회한다
+2) 지역코드가 "서울특별시"인 데이터를 기준으로한다.
+3) 지역코드를 기준으로 그룹화한다
+4)MIN 함수를 이용하여 일자별 최저온도값중에서 최저온도값을 구한다
+4) MAX 함수를 이용하여 최고온도
+
+결과 # 서울시 최저온도는 영하 23.1도, 영상 39.6도 인것을 알수있다
+
+이제
+서울시 역사상 최저 및 최고온도를 구하고 해당일자까지구한다
+SELECT
+  B.AREA_CD
+,  B.STD_DE
+,  B.MIN_TEMPER
+,  B.MAX_TEMPER
+  FROM
+(
+ SELECT
+A.AREA_CD
+, MIN(A.MIN_TEMPER) AS MIN)_TEMPER
+, MAX(A.MAX_TEMPER) AS MAX_TEMPER
+ FROM TB_TEMPER A
+ WHERE A.AREA_CD = '108' --지역코드 '서울특별시'
+ GROUP BY A.AREA_CD
+) A
+, TB_TEMPER B
+  WHERE (B.AREA_CD = A.AREA_CD AND B.MIN_TEMPER = A.MIN_TEMPER)
+  OR (B.AREA_CD = A.AREA_CD AND B.MAX_TEMPER = A.MAX_TEMPER);
+
+
+
+1) TB_TEMPER 테이블을 조회한다
+2) 지역코드가 "서울특별시"인 데이터를 기준으로한다.
+3) 지역코드를 기준으로 그룹화한다
+4)MIN 함수를 이용하여 일자별 최저온도값중에서 최저온도값을 구한다
+4) MAX 함수를 이용하여 최고온도
+4)그룹화한 지역코드를 출력한다
+5)동일한 테이블인 TB_TEMPER 테이블을 조회한다
+6)지역코드 및 최저온도가 일치하는 행을 구한다
+6) 지역코드 및 최고온도가 일치하는 행
+7)B테이블의 지역코드를 구한다
+7)B테이블의 기준일자를 구한다
+7)B테이블의 최저온도를 구한다.
+7)B테이블의 최고온도를 구한다.
+
+#현재 동일한 테이블을 2번써서 조인하고있다
+#이러한 조인기법을 SELF JOIN
+#즉 일단 서울특별시 최저온도,최고온도를 구한 후 그 온도에
+매칭되는 온도값을 다시 자기자신에게서 검색하는 기법이다
+
